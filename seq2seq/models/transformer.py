@@ -6,8 +6,24 @@ from seq2seq.models import register_model, register_model_architecture
 from seq2seq.models import Seq2SeqModel, Seq2SeqEncoder, Seq2SeqDecoder
 import sentencepiece as spm
 
+def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
+    freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
+    t = torch.arange(end, device=freqs.device)  # type: ignore
+    freqs = torch.outer(t, freqs).float()  # type: ignore
+    freqs_cis = torch.polar(torch.ones_like(freqs), freqs)  # complex64
+    return freqs_cis
 
-
+def apply_rotary_emb(
+    xq: torch.Tensor,
+    xk: torch.Tensor,
+    freqs_cis: torch.Tensor,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
+    xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
+    freqs_cis = reshape_for_broadcast(freqs_cis, xq_)
+    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3)
+    xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(3)
+    return xq_out.type_as(xq), xk_out.type_as(xk)
 
 @register_model('transformer')
 class TransformerModel(Seq2SeqModel):
@@ -187,6 +203,7 @@ class MultiHeadedAttention(nn.Module):
         self.WV = nn.Linear(dim_embed, dim_embed) 
         self.linear = nn.Linear(dim_embed, dim_embed)
         self.dropout = nn.Dropout(dropout)
+        self.freqs_cis = precompute_freqs_cis(self.d_k, max_seq_len)
 
     def forward(self, x_query, x_key, x_value, mask=None):
         nbatch = x_query.size(0) # get batch size
