@@ -203,16 +203,20 @@ class MultiHeadedAttention(nn.Module):
         self.WV = nn.Linear(dim_embed, dim_embed) 
         self.linear = nn.Linear(dim_embed, dim_embed)
         self.dropout = nn.Dropout(dropout)
-        self.freqs_cis = precompute_freqs_cis(self.d_k, max_seq_len)
+        self.freqs_cis = precompute_freqs_cis(self.d_k, 300)
 
     def forward(self, x_query, x_key, x_value, mask=None):
         nbatch = x_query.size(0) # get batch size
+        seq_len = x_query.size(1)
         # 1) Linear projections to get the multi-head query, key and value tensors
         # x_query, x_key, x_value dimension: nbatch * seq_len * dim_embed
         # LHS query, key, value dimensions: nbatch * h * seq_len * d_k
         query = self.WQ(x_query).view(nbatch, -1, self.h, self.d_k).transpose(1,2)
         key   = self.WK(x_key).view(nbatch, -1, self.h, self.d_k).transpose(1,2)
         value = self.WV(x_value).view(nbatch, -1, self.h, self.d_k).transpose(1,2)
+
+        freqs_cis = precompute_freqs_cis(self.d_k, seq_len).to(query.device)
+        query, key = apply_rotary_emb(query, key, freqs_cis)
         # 2) Attention
         # scores has dimensions: nbatch * h * seq_len * seq_len
         scores = torch.matmul(query, key.transpose(-2, -1))/math.sqrt(self.d_k)
