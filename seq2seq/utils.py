@@ -8,9 +8,6 @@ from collections import defaultdict
 from torch.serialization import default_restore_location
 
 # this file needs some cleanup at some point, some functions are not used anymore :]
-def apple_rope(x, seq_len, dim_head):
-    
-
 def save_embedding_layer(embedding_layer, file_path):
     """
     Save the weights of an embedding layer to a file using torch.save.
