@@ -8,6 +8,15 @@ from collections import defaultdict
 from torch.serialization import default_restore_location
 
 # this file needs some cleanup at some point, some functions are not used anymore :]
+def mark_only_lora_as_trainable(model):
+    for name, param in model.named_parameters():
+        param.requires_grad = 'lora' in name
+
+
+def lora_state_dict(model):
+    return {k: v for k, v in model.state_dict().items() if 'lora' in k}
+
+
 def save_embedding_layer(embedding_layer, file_path):
     """
     Save the weights of an embedding layer to a file using torch.save.
