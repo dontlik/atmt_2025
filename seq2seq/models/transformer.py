@@ -191,7 +191,7 @@ class TransformerDecoder(Seq2SeqDecoder):
         return logits
 
 class MultiHeadedAttention(nn.Module):
-    def __init__(self, n_heads: int, dim_embed: int, dropout: float = 0.0):
+    def __init__(self, n_heads: int, dim_embed: int, dropout: float = 0.0, use_rope: bool = True):
         super(MultiHeadedAttention, self).__init__()
         #super().__init__()  python 3.x
         assert dim_embed % n_heads == 0 # check the h number
@@ -203,7 +203,7 @@ class MultiHeadedAttention(nn.Module):
         self.WV = nn.Linear(dim_embed, dim_embed) 
         self.linear = nn.Linear(dim_embed, dim_embed)
         self.dropout = nn.Dropout(dropout)
-        self.freqs_cis = precompute_freqs_cis(self.d_k, 300)
+        self.use_rope = use_rope
 
     def forward(self, x_query, x_key, x_value, mask=None):
         nbatch = x_query.size(0) # get batch size
@@ -211,12 +211,17 @@ class MultiHeadedAttention(nn.Module):
         # 1) Linear projections to get the multi-head query, key and value tensors
         # x_query, x_key, x_value dimension: nbatch * seq_len * dim_embed
         # LHS query, key, value dimensions: nbatch * h * seq_len * d_k
-        query = self.WQ(x_query).view(nbatch, -1, self.h, self.d_k).transpose(1,2)
-        key   = self.WK(x_key).view(nbatch, -1, self.h, self.d_k).transpose(1,2)
-        value = self.WV(x_value).view(nbatch, -1, self.h, self.d_k).transpose(1,2)
+        query = self.WQ(x_query).view(nbatch, -1, self.h, self.d_k)
+        key   = self.WK(x_key).view(nbatch, -1, self.h, self.d_k)
+        value = self.WV(x_value).view(nbatch, -1, self.h, self.d_k)
 
-        freqs_cis = precompute_freqs_cis(self.d_k, seq_len).to(query.device)
-        query, key = apply_rotary_emb(query, key, freqs_cis)
+        if self.use_rope:
+            freqs_cis = precompute_freqs_cis(self.d_k, seq_len).to(query.device)
+            query, key = apply_rotary_emb(query, key, freqs_cis)
+
+        query = query.transpose(1, 2)
+        key = key.transpose(1, 2)
+        value = value.transpose(1, 2)
         # 2) Attention
         # scores has dimensions: nbatch * h * seq_len * seq_len
         scores = torch.matmul(query, key.transpose(-2, -1))/math.sqrt(self.d_k)
@@ -253,7 +258,7 @@ class DecoderBlock(nn.Module):
     def __init__(self, dim_embed, n_heads, dropout, dim_ff):
         super().__init__()
         self.atten1 = MultiHeadedAttention(n_heads, dim_embed)
-        self.atten2 = MultiHeadedAttention(n_heads, dim_embed)
+        self.atten2 = MultiHeadedAttention(n_heads, dim_embed, use_rope = False)
         self.feed_forward = nn.Sequential(
             nn.Linear(dim_embed, dim_ff),
             nn.ReLU(),
