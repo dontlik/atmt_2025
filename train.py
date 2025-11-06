@@ -89,6 +89,8 @@ def main(args):
 
     model = models.build_model(args, src_tokenizer, tgt_tokenizer)
     logging.info('Built a model with {:d} parameters'.format(sum(p.numel() for p in model.parameters())))
+
+    mark_only_lora_as_trainable(model)
     criterion = nn.CrossEntropyLoss(ignore_index=src_tokenizer.pad_id(), reduction='sum')
 
     # Move model to GPU if available
@@ -140,7 +142,7 @@ def main(args):
                 sample = utils.move_to_cuda(sample)
             if len(sample) == 0:
                 continue
-            model.train()
+            model.train()ss
             src, trg_in, trg_out, src_pad_mask, trg_pad_mask = make_batch(x=sample['src_tokens'],
                                                                            y=sample['tgt_tokens'])
             
