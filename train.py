@@ -188,7 +188,8 @@ def main(args):
         # Save checkpoints
         if epoch % args.save_interval == 0:
             utils.save_checkpoint(args, model, optimizer, epoch, valid_perplexity)  # lr_scheduler
-
+            
+        torch.save(lora_state_dict(model), 'lora_weights.pt')
         # Check whether to terminate training
         if valid_perplexity < best_validate:
             best_validate = valid_perplexity
@@ -203,7 +204,8 @@ def main(args):
     test_dataset = load_data(split='test')
     logging.info('Loading the best model for final evaluation on the test set')
     utils.load_checkpoint(args, model, optimizer)
-
+    
+    
     # Evaluate the model on the test set
     bleu_score, all_hypotheses, all_references = evaluate(
         args,
