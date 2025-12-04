@@ -49,6 +49,7 @@ def beam_search_decode(model: Seq2SeqModel, src_tokens: torch.Tensor, src_pad_ma
     BOS, EOS, PAD = tgt_tokenizer.bos_id(), tgt_tokenizer.eos_id(), tgt_tokenizer.pad_id()
     # __QUESTION 1: what does this line set up and why is the beam represented this way?
     beams = [(torch.tensor([[BOS]], device=device), 0.0)]
+    encoder_out = model.encoder(src_tokens, src_lengths)
     for _ in range(max_out_len):
         new_beams = []
         for seq, score in beams:
