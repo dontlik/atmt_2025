@@ -75,6 +75,9 @@ def beam_search_decode(model: Seq2SeqModel, src_tokens: torch.Tensor, src_pad_ma
 
         beams = sorted(new_beams, key=lambda x: x[1], reverse=True)[:beam_size]
         # __QUESTION 5: Why do we check for EOS here and what does it imply for beam search?
+        # MaximumCandidates per Node
+        if len(new_beams)  >=     
+        #stopping criterion
         if all(seq[0, -1].item() == EOS for seq, _ in beams):
             break
     best_seq, _ = beams[0]
