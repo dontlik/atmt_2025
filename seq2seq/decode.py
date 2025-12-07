@@ -77,15 +77,21 @@ def beam_search_decode(model: Seq2SeqModel, src_tokens: torch.Tensor, src_pad_ma
                 new_beams.append((new_seq, new_score))
         # Relative Threshold Pruning    
         rp = 0.8
-        top_score = max(score for _, socre in new_beams)
-        relative_beams = [(seq, score) for seq, score in new_beams if score >= rp*top_score] 
+        scores = [score for _, score in new_beams]
+        top_score = max(scores)
+        bottom_score = min(scores)
+        threshold = top_score - rp * (top_score - bottom_score)
+        relative_beams = [(seq, score) for seq, score in new_beams if score >= threshold] 
 
         #Absolute Threshold Pruning       
         rp = 10
         top_score = max(score for _, socre in new_beams)
         absolute_beams = [(seq, score) for seq, score in new_beams if score >= top_score - rp]     
+
+        
+
                
-        beams = sorted(new_beams, key=lambda x: x[1], reverse=True)[:beam_size]
+        beams = sorted(relative_beams, key=lambda x: x[1], reverse=True)[:beam_size]
         # __QUESTION 5: Why do we check for EOS here and what does it imply for beam search?
         #
                
