@@ -70,7 +70,10 @@ def beam_search_decode(model: Seq2SeqModel, src_tokens: torch.Tensor, src_pad_ma
             for k in range(beam_size):
                 # __QUESTION 4: explain the tensor shapes and the logic when creating new_seq and new_score below. Is any broadcasting or indexing issue possible?
                 new_seq = torch.cat([seq, topk_ids[:, k].unsqueeze(0)], dim=1)
+                length = new_seq.size(1)
+                length_penalty = ((5 + length) / 6) ** alpha       
                 new_score = score + topk_log_probs[:, k].item()
+                new_score = new_score / length_penalty
                 new_beams.append((new_seq, new_score))
         # Relative Threshold Pruning    
         rp = 0.8
